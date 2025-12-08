@@ -561,6 +561,137 @@ cleanup_slot() {
     fi
 }
 
+reset_database() {
+    local flush_redis=false
+    local nuke_happy_dir=false
+    local force=false
+
+    # Parse arguments
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --flush-redis)
+                flush_redis=true
+                shift
+                ;;
+            --nuke-happy-dir)
+                nuke_happy_dir=true
+                shift
+                ;;
+            --force|-f)
+                force=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+
+    echo ""
+    warning "=== DATABASE RESET for Slot ${SLOT_SUFFIX} ==="
+    echo ""
+    echo "This will:"
+    echo "  - Drop and recreate PostgreSQL database: $DATABASE_NAME"
+    echo "  - Delete MinIO data: $MINIO_DATA_DIR"
+    if [ "$flush_redis" = "true" ]; then
+        echo "  - Flush Redis (ALL data, affects all slots!)"
+    fi
+    if [ "$nuke_happy_dir" = "true" ]; then
+        echo "  - Delete happy home directory: ~/.happy-slot-${SLOT_SUFFIX}"
+    fi
+    echo ""
+
+    if [ "$force" != "true" ]; then
+        read -p "Are you sure? (y/N) " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            info "Aborted."
+            return 1
+        fi
+    fi
+
+    # Stop slot-specific services first
+    info "Stopping services for slot ${SLOT_SUFFIX}..."
+    for service in webapp server minio; do
+        local pid_file="$PIDS_DIR/${service}.pid"
+        if [ -f "$pid_file" ]; then
+            local pid=$(cat "$pid_file")
+            if kill -0 "$pid" 2>/dev/null; then
+                info "Stopping $service (PID $pid)..."
+                kill "$pid" 2>/dev/null || true
+                sleep 1
+                kill -9 "$pid" 2>/dev/null || true
+            fi
+            rm -f "$pid_file"
+        fi
+    done
+
+    # Ensure PostgreSQL is running
+    if ! port_listening "$POSTGRES_PORT"; then
+        info "Starting PostgreSQL..."
+        service postgresql start 2>/dev/null || true
+        wait_for_port "$POSTGRES_PORT" "PostgreSQL" 10 || {
+            error "PostgreSQL failed to start"
+            return 1
+        }
+    fi
+
+    # Drop the database
+    info "Dropping database '$DATABASE_NAME'..."
+    sudo -u postgres psql -c "DROP DATABASE IF EXISTS $DATABASE_NAME;" 2>/dev/null || {
+        # Try with password auth if sudo fails
+        PGPASSWORD=postgres psql -U postgres -h localhost -c "DROP DATABASE IF EXISTS $DATABASE_NAME;" 2>/dev/null || true
+    }
+    success "Database dropped"
+
+    # Create the database
+    info "Creating database '$DATABASE_NAME'..."
+    sudo -u postgres psql -c "CREATE DATABASE $DATABASE_NAME;" 2>/dev/null || {
+        PGPASSWORD=postgres psql -U postgres -h localhost -c "CREATE DATABASE $DATABASE_NAME;" 2>/dev/null || true
+    }
+    success "Database created"
+
+    # Run migrations
+    info "Running migrations..."
+    (cd "$SERVER_DIR" && DATABASE_URL="$DATABASE_URL" yarn migrate > /dev/null 2>&1) || {
+        warning "Migration command returned non-zero (may be normal for fresh db)"
+    }
+    success "Migrations applied"
+
+    # Delete MinIO data
+    if [ -d "$MINIO_DATA_DIR" ]; then
+        info "Deleting MinIO data: $MINIO_DATA_DIR"
+        rm -rf "$MINIO_DATA_DIR"
+        success "MinIO data deleted"
+    fi
+
+    # Flush Redis if requested
+    if [ "$flush_redis" = "true" ]; then
+        info "Flushing Redis..."
+        redis-cli -p "$REDIS_PORT" FLUSHALL > /dev/null 2>&1 || {
+            warning "Failed to flush Redis (may not be running)"
+        }
+        success "Redis flushed"
+    fi
+
+    # Delete happy home directory if requested
+    local happy_home_dir="$HOME/.happy-slot-${SLOT_SUFFIX}"
+    if [ "${SLOT_SUFFIX}" = "0" ]; then
+        happy_home_dir="$HOME/.happy"
+    fi
+    if [ "$nuke_happy_dir" = "true" ] && [ -d "$happy_home_dir" ]; then
+        info "Deleting happy home directory: $happy_home_dir"
+        rm -rf "$happy_home_dir"
+        success "Happy home directory deleted"
+    fi
+
+    echo ""
+    success "Database reset complete for slot ${SLOT_SUFFIX}!"
+    echo ""
+    info "Run './happy-launcher.sh start' to start services with fresh database"
+    echo ""
+}
+
 cleanup_all() {
     local clean_logs=false
     local nuke_happy_dir=false
@@ -1002,6 +1133,11 @@ case "${1:-}" in
         cleanup_all "$@"
         ;;
 
+    reset-db)
+        shift
+        reset_database "$@"
+        ;;
+
     restart)
         $0 stop
         sleep 2
@@ -1095,6 +1231,10 @@ case "${1:-}" in
         echo "  cleanup --clean-logs       Also delete log files"
         echo "  cleanup --all-slots        Clean all slots (not just current)"
         echo "  cleanup --nuke-happy-dir   Also delete HAPPY_HOME_DIR (~/.happy-slot-*)"
+        echo "  reset-db           Drop and recreate database, clear MinIO data"
+        echo "  reset-db --flush-redis     Also flush Redis (affects all slots!)"
+        echo "  reset-db --nuke-happy-dir  Also delete happy home directory"
+        echo "  reset-db --force           Skip confirmation prompt"
         echo "  restart            Full cleanup and restart all services"
         echo "  status             Show status of all services"
         echo "  status --all-slots Show status for all active slots"
@@ -1117,6 +1257,8 @@ case "${1:-}" in
         echo "  $0 status --all-slots       # Check status of all active slots"
         echo "  $0 --slot 1 env             # Print env vars for slot 1"
         echo "  eval \$($0 --slot 1 env)     # Set env vars in current shell"
+        echo "  $0 reset-db                 # Reset database for slot 0"
+        echo "  $0 --slot 1 reset-db -f     # Reset slot 1 database (no prompt)"
         echo ""
         ;;
 

@@ -453,6 +453,8 @@ start_webapp() {
         info "Starting webapp (slot ${SLOT:-0})..."
         cd "$WEBAPP_DIR"
 
+        local dist_dir="$WEBAPP_DIR/dist"
+
         # Build debug environment variables
         local debug_env=""
         if [[ -n "$DEBUG_MODE" ]]; then
@@ -460,17 +462,27 @@ start_webapp() {
             info "Debug mode enabled for webapp"
         fi
 
-        # Clear Metro cache to ensure fresh bundle transformation
-        # The --clear flag is essential for CI environments where the cache may be stale
+        # Export static web files (production build)
+        # APP_ENV=production ensures the app title is "Happy" not "Happy (dev)"
+        info "Building webapp static files..."
         env $debug_env \
-            BROWSER=none \
+            APP_ENV=production \
             EXPO_PUBLIC_HAPPY_SERVER_URL="$HAPPY_SERVER_URL" \
-            yarn web --port "$HAPPY_WEBAPP_PORT" --clear > "$LOG_DIR/webapp.log" 2>&1 &
+            npx expo export -p web --output-dir "$dist_dir" -c > "$LOG_DIR/webapp-build.log" 2>&1 || {
+            error "Webapp build failed. Check logs: tail $LOG_DIR/webapp-build.log"
+            cd "$SCRIPT_DIR"
+            return 1
+        }
+        success "Webapp static files built"
+
+        # Serve static files with npx serve
+        info "Starting static file server..."
+        npx -y serve@latest -s "$dist_dir" -l "$HAPPY_WEBAPP_PORT" > "$LOG_DIR/webapp.log" 2>&1 &
         echo $! > "$PIDS_DIR/webapp.pid"
         cd "$SCRIPT_DIR"
 
-        # Webapp takes longer to start (Metro bundler)
-        wait_for_port "$HAPPY_WEBAPP_PORT" "webapp" 60 || {
+        # Static server starts quickly
+        wait_for_port "$HAPPY_WEBAPP_PORT" "webapp" 30 || {
             error "Webapp failed to start. Check logs: tail $LOG_DIR/webapp.log"
             return 1
         }

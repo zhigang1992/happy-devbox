@@ -1,9 +1,12 @@
 [submodule "happy"]
 	path = happy
-	url = ../happy
+	url = git@github.com:zhigang1992/happy-1
 [submodule "happy-cli"]
 	path = happy-cli
-	url = ../happy-cli
+	url = git@github.com:zhigang1992/happy-cli
 [submodule "happy-server"]
 	path = happy-server
-	url = ../happy-server
+	url = git@github.com:zhigang1992/happy-server
+[submodule "happy-server-mcp"]
+	path = happy-server-mcp
+	url = git@github.com:zhigang1992/happy-server-mcp.git

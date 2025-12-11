@@ -320,7 +320,7 @@ ensure_postgres_ready() {
     # Ensure database schema exists (run migrations if needed)
     if ! PGPASSWORD=postgres psql -U postgres -h localhost -d "$DATABASE_NAME" -c "\dt" 2>/dev/null | grep -q "Session"; then
         info "Running database migrations for '$DATABASE_NAME'..."
-        (cd "$SERVER_DIR" && DATABASE_URL="$DATABASE_URL" yarn migrate > /dev/null 2>&1) || true
+        (cd "$SERVER_DIR" && DATABASE_URL="$DATABASE_URL" bun run migrate > /dev/null 2>&1) || true
     fi
 }
 
@@ -434,7 +434,7 @@ start_server() {
         S3_SECRET_KEY="minioadmin" \
         S3_BUCKET="happy" \
         S3_PUBLIC_URL="http://localhost:${MINIO_PORT}/happy" \
-            yarn start > "$LOG_DIR/server.log" 2>&1 &
+            bun start > "$LOG_DIR/server.log" 2>&1 &
         echo $! > "$PIDS_DIR/server.pid"
         cd "$SCRIPT_DIR"
 
@@ -766,7 +766,7 @@ cleanup_all() {
     if is_running "tsx.*sources/main.ts"; then
         info "Stopping happy-server..."
         pkill -f "tsx.*sources/main.ts" || true
-        pkill -f "yarn tsx.*sources/main.ts" || true
+        pkill -f "bun.*sources/main.ts" || true
         success "happy-server stopped"
     fi
 

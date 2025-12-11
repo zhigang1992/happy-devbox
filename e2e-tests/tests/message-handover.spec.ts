@@ -176,7 +176,7 @@ async function setupTestEnvironment(): Promise<TestContext> {
     console.log('  Starting happy-server...');
     const serverDir = join(ROOT_DIR, 'happy-server');
 
-    const serverProc = spawn('yarn', ['start'], {
+    const serverProc = spawn('bun', ['start'], {
         cwd: serverDir,
         env: {
             ...process.env,

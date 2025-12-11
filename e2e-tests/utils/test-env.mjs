@@ -200,7 +200,7 @@ NODE_ENV=test
         await writeFile(envFile, envContent);
 
         // Build and start server
-        const proc = spawn('yarn', ['start'], {
+        const proc = spawn('bun', ['start'], {
             cwd: serverDir,
             env: {
                 ...process.env,

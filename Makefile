@@ -189,17 +189,17 @@ feature-end:
 # Install dependencies for happy-server
 install-server:
 	@echo "Installing happy-server dependencies..."
-	@cd happy-server && yarn install
+	@cd happy-server && bun install
 
 # Install dependencies for happy-cli
 install-cli:
 	@echo "Installing happy-cli dependencies..."
-	@cd happy-cli && yarn install
+	@cd happy-cli && bun install
 
 # Install dependencies for happy webapp
 install-webapp:
 	@echo "Installing happy webapp dependencies..."
-	@cd happy && yarn install
+	@cd happy && bun install
 
 # Install dependencies for all repositories
 install: install-server install-cli install-webapp
@@ -209,13 +209,13 @@ install: install-server install-cli install-webapp
 # Build happy-cli (compiles TypeScript to dist/)
 build-cli:
 	@echo "=== Building happy-cli ==="
-	@cd happy-cli && yarn build
+	@cd happy-cli && bun run build
 	@echo "=== happy-cli build complete ==="
 
 # Typecheck happy-server (runs with tsx, no compilation needed)
 build-server:
 	@echo "=== Typechecking happy-server ==="
-	@cd happy-server && yarn build
+	@cd happy-server && bun run build
 	@echo "=== happy-server typecheck complete ==="
 
 # Build all TypeScript code

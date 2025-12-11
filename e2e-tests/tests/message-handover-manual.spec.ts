@@ -8,10 +8,10 @@
  * - HAPPY_WEBAPP_URL: Full webapp URL (overrides port)
  * - HAPPY_HOME_DIR: CLI home directory (default: ~/.happy-dev-test)
  *
- * Run with: HAPPY_HOME_DIR=/root/.happy-dev-test yarn test tests/message-handover-manual.spec.ts
+ * Run with: HAPPY_HOME_DIR=/root/.happy-dev-test bun test tests/message-handover-manual.spec.ts
  *
  * For slot-based testing with happy-launcher.sh:
- *   HAPPY_SERVER_PORT=10001 HAPPY_WEBAPP_PORT=10002 yarn test
+ *   HAPPY_SERVER_PORT=10001 HAPPY_WEBAPP_PORT=10002 bun test
  *
  * This test demonstrates the bug where messages don't appear in the webapp
  * after switching from Local to Remote mode.

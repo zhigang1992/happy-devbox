@@ -129,9 +129,9 @@ if [ "$E2E_ONLY" = false ]; then
     echo "=== Build Validation ==="
     echo ""
 
-    run_test "happy-cli build" "cd '$ROOT_DIR/happy-cli' && yarn build" || true
-    run_test "happy-server typecheck" "cd '$ROOT_DIR/happy-server' && yarn build" || true
-    run_test "happy webapp typecheck" "cd '$ROOT_DIR/happy' && yarn typecheck" || true
+    run_test "happy-cli build" "cd '$ROOT_DIR/happy-cli' && bun run build" || true
+    run_test "happy-server typecheck" "cd '$ROOT_DIR/happy-server' && bun run build" || true
+    run_test "happy webapp typecheck" "cd '$ROOT_DIR/happy' && bun run typecheck" || true
 
     # =============================================================================
     # Unit Tests
@@ -142,14 +142,14 @@ if [ "$E2E_ONLY" = false ]; then
 
     # happy-server unit tests (if they exist)
     if [ -f "$ROOT_DIR/happy-server/package.json" ] && grep -q '"test"' "$ROOT_DIR/happy-server/package.json"; then
-        run_test "happy-server unit tests" "cd '$ROOT_DIR/happy-server' && yarn test --run 2>/dev/null || true" || true
+        run_test "happy-server unit tests" "cd '$ROOT_DIR/happy-server' && bun test --run 2>/dev/null || true" || true
     else
         echo "  Skipping happy-server unit tests (no test script found)"
     fi
 
     # happy-cli unit tests (if they exist)
     if [ -f "$ROOT_DIR/happy-cli/package.json" ] && grep -q '"test"' "$ROOT_DIR/happy-cli/package.json"; then
-        run_test "happy-cli unit tests" "cd '$ROOT_DIR/happy-cli' && yarn test --run 2>/dev/null || true" || true
+        run_test "happy-cli unit tests" "cd '$ROOT_DIR/happy-cli' && bun test --run 2>/dev/null || true" || true
     else
         echo "  Skipping happy-cli unit tests (no test script found)"
     fi
